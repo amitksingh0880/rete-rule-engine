@@ -121,29 +121,33 @@ class AlphaNode:
         tests: List[Callable[[WME], bool]] = []
         for c in self.constraints:
             if c.value_is_variable:
-                # Variable constraints are resolved at beta-join time
                 continue
             op = c.operator
             f, v = c.field, c.value
-            if op == "==":
-                tests.append(lambda w, f=f, v=v: w.get(f) == v)
-            elif op == "!=":
-                tests.append(lambda w, f=f, v=v: w.get(f) != v)
-            elif op == ">":
-                tests.append(lambda w, f=f, v=v: w.get(f) is not None and w.get(f) > v)
-            elif op == "<":
-                tests.append(lambda w, f=f, v=v: w.get(f) is not None and w.get(f) < v)
-            elif op == ">=":
-                tests.append(lambda w, f=f, v=v: w.get(f) is not None and w.get(f) >= v)
-            elif op == "<=":
-                tests.append(lambda w, f=f, v=v: w.get(f) is not None and w.get(f) <= v)
-            elif op == "in":
-                tests.append(lambda w, f=f, v=v: w.get(f) in v)
-            elif op == "exists":
-                tests.append(lambda w, f=f: w.get(f) is not None)
-            elif op == "matches":
-                pattern = re.compile(v)
-                tests.append(lambda w, f=f, p=pattern: bool(p.match(str(w.get(f, "")))))
+
+            def make_test(field: str, operator: str, value: Any):
+                if operator == "==":
+                    return lambda w: w.get(field) == value
+                elif operator == "!=":
+                    return lambda w: w.get(field) != value
+                elif operator == ">":
+                    return lambda w: (val := w.get(field)) is not None and val > value
+                elif operator == "<":
+                    return lambda w: (val := w.get(field)) is not None and val < value
+                elif operator == ">=":
+                    return lambda w: (val := w.get(field)) is not None and val >= value
+                elif operator == "<=":
+                    return lambda w: (val := w.get(field)) is not None and val <= value
+                elif operator == "in":
+                    return lambda w: w.get(field) in value
+                elif operator == "exists":
+                    return lambda w: w.get(field) is not None
+                elif operator == "matches":
+                    pattern = re.compile(str(value))
+                    return lambda w: bool(pattern.match(str(w.get(field, ""))))
+                return lambda w: True
+
+            tests.append(make_test(f, op, v))
         return tests
 
     # ------------------------------------------------------------------
@@ -271,7 +275,9 @@ class BetaNode:
         if not token.wmes:
             return True
         idx = jt.left_wme_index
-        left_wme = token.wmes[idx] if token.wmes and idx < len(token.wmes) else None
+        if idx >= len(token.wmes):
+            return True
+        left_wme = token.wmes[idx]
         if left_wme is None:
             return True
         lv = left_wme.get(jt.left_field)
@@ -285,7 +291,7 @@ class BetaNode:
             return lv is not None and rv is not None and lv > rv
         elif t == TestType.LESS:
             return lv is not None and rv is not None and lv < rv
-        elif t == TestType.PREDICATE and jt.predicate:
+        elif t == TestType.PREDICATE and jt.predicate is not None:
             return jt.predicate(lv, rv)
         return False
 

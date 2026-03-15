@@ -1,4 +1,3 @@
-"""Finance Rule Engine - DSL Package"""
-from .compiler import DSLRuleEngine, RuleCompiler
+from .compiler import DSLRuleEngine
 
-__all__ = ["DSLRuleEngine", "RuleCompiler"]
+__all__ = ["DSLRuleEngine"]

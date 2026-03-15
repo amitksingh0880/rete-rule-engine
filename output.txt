@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "D:\Mobile_Projects\Rule Engine\examples\demo.py", line 10, in <module>
+    from dsl.compiler import DSLRuleEngine
+  File "D:\Mobile_Projects\Rule Engine\examples\../src\dsl\__init__.py", line 2, in <module>
+    from dsl.compiler import DSLRuleEngine, RuleCompiler
+ImportError: cannot import name 'RuleCompiler' from 'dsl.compiler' (D:\Mobile_Projects\Rule Engine\examples\../src\dsl\compiler.py)

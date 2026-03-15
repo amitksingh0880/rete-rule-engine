@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .agenda import Agenda
 from .memory import WME, WorkingMemory
@@ -20,6 +20,9 @@ from .nodes import (
     Action, AlphaNode, BetaNode, FieldConstraint,
     JoinTest, TerminalNode, TestType, Token,
 )
+
+if TYPE_CHECKING:
+    from core.network import ReteNetwork # This line was added based on the instruction's "Code Edit" block, assuming it was meant to be a forward reference for type hinting.
 
 logger = logging.getLogger(__name__)
 
@@ -151,11 +154,11 @@ class ReteNetwork:
 
     def retract_fact(self, wme_id: str) -> Optional[WME]:
         """Retract a fact and propagate the removal through the network."""
-        wme = self.working_memory.retract_fact(wme_id)
-        if wme:
+        retracted_wme = self.working_memory.retract_fact(wme_id)
+        if retracted_wme:
             for alpha in self._alpha_nodes.values():
-                alpha.deactivate(wme)
-        return wme
+                alpha.deactivate(retracted_wme)
+        return retracted_wme
 
     def update_fact(self, wme: WME) -> None:
         """Retract the old version of a fact and assert the updated version."""
@@ -211,7 +214,7 @@ class ReteNetwork:
             "matched_rules": self._matched_rules,
             "actions": self._action_log,
             "cycles": cycles,
-            "latency_ms": round(latency_ms, 3),
+            "latency_ms": round(float(latency_ms), 1),
         }
 
     # =========================================================================
@@ -225,9 +228,10 @@ class ReteNetwork:
 
     def handle_predict_action(self, params: Dict) -> Optional[Dict]:
         """Delegate ML prediction to the registered predict handler."""
-        if self._predict_handler:
+        handler = self._predict_handler
+        if handler is not None:
             try:
-                return self._predict_handler(params)
+                return handler(params)
             except Exception as exc:
                 logger.error("Predict action failed: %s", exc)
         else:

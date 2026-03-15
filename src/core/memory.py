@@ -7,9 +7,14 @@ Rete network during forward-chaining inference.
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import uuid
+
+
+def generate_wme_id() -> str:
+    """Generate a short unique ID for a WME."""
+    return uuid.uuid4().hex[:12]
 
 
 @dataclass(frozen=True)
@@ -26,9 +31,9 @@ class WME:
     """
     fact_type: str
     attributes: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = "system"
-    id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = field(default_factory=generate_wme_id)
 
     # -----------------------------------------------------------------------
     # Accessor helpers
@@ -61,6 +66,14 @@ class WME:
             timestamp=datetime.fromisoformat(data["timestamp"]),
             source=data.get("source", "system"),
         )
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, WME):
+            return False
+        return self.id == other.id
 
     def __repr__(self) -> str:
         return f"WME({self.fact_type}#{self.id} {self.attributes})"

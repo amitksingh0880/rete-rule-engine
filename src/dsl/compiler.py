@@ -21,9 +21,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..core.memory import WME
-from ..core.network import ReteNetwork
-from ..core.nodes import Action, FieldConstraint
+from core.memory import WME
+from core.network import ReteNetwork
+from core.nodes import Action, FieldConstraint
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +61,21 @@ class SimpleRuleParser:
 
     def parse_ruleset(self, dsl: str) -> List[Dict]:
         """Parse one or many rules and return a list of parsed-rule dicts."""
+        # 1. Strip single-line comments
+        dsl = re.sub(r'//.*', '', dsl)
+        
+        # 2. Strip ruleset/version declarations
+        dsl = re.sub(r'\bruleset\s+\w+.*', '', dsl, flags=re.IGNORECASE)
+        
         rules = []
-        # Split on 'rule ' boundaries
+        # 3. Split on 'rule ' boundaries
         blocks = re.split(r'\brule\s+', dsl, flags=re.IGNORECASE)
         for block in blocks[1:]:
+            block = block.strip()
+            if not block:
+                continue
             try:
-                rule = self._parse_rule_block(block.strip())
+                rule = self._parse_rule_block(block)
                 rules.append(rule)
             except ParseError as exc:
                 logger.error("Parse error: %s", exc)
