@@ -1,0 +1,42 @@
+# Finance Rule Language – Insurance Claims Ruleset
+# Claim Adjudication Rules
+
+ruleset ClaimsAdjudication version "1.0"
+
+// Auto-approve small claims
+rule approve_small_claim salience 15
+when
+    Claim c:
+        amount <= 1000,
+        status == "OPEN"
+    Policy p:
+        is_active == true
+then
+    return "APPROVED" with payout: 1000
+
+// Refer large claims for review
+rule refer_large_claim salience 10
+when
+    Claim c:
+        amount > 10000,
+        status == "OPEN"
+then
+    return "REFERRED" with reason: "large_claim_manual_review"
+
+// Decline claims on inactive policies
+rule decline_inactive_policy salience 20
+when
+    Claim c:
+        status == "OPEN"
+    Policy p:
+        is_active == false
+then
+    return "DECLINED" with reason: "policy_inactive"
+
+// Flag potential fraud
+rule flag_duplicate_claim salience 25
+when
+    Claim c:
+        is_duplicate == true
+then
+    return "DECLINED" with reason: "duplicate_claim_suspected_fraud"

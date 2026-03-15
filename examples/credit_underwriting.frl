@@ -1,0 +1,83 @@
+// ============================================================
+// Finance Rule Language – Example Ruleset
+// Credit Scoring & Loan Underwriting
+// Version: 2.0
+// ============================================================
+ruleset CreditUnderwriting version "2.0"
+
+// -----------------------------------------------
+// Rule 1: Automatic Approval – prime applicants
+// -----------------------------------------------
+rule approve_prime_applicant
+    priority 1
+    salience 20
+when
+    Applicant a:
+        credit_score >= 750,
+        annual_income >= 50000,
+        debt_to_income_ratio <= 0.35
+then
+    return "APPROVED" with tier: "prime", max_loan: 500000
+
+// -----------------------------------------------
+// Rule 2: Standard Approval – near-prime
+// -----------------------------------------------
+rule approve_near_prime
+    priority 1
+    salience 15
+when
+    Applicant a:
+        credit_score >= 680,
+        annual_income >= 35000,
+        debt_to_income_ratio <= 0.45
+then
+    return "APPROVED" with tier: "near_prime", max_loan: 200000
+
+// -----------------------------------------------
+// Rule 3: Refer for manual review
+// -----------------------------------------------
+rule refer_borderline
+    priority 1
+    salience 10
+when
+    Applicant a:
+        credit_score >= 620,
+        credit_score < 680
+then
+    return "REFERRED" with reason: "borderline_score"
+
+// -----------------------------------------------
+// Rule 4: Auto-decline – poor credit
+// -----------------------------------------------
+rule decline_poor_credit
+    priority 1
+    salience 5
+when
+    Applicant a:
+        credit_score < 580
+then
+    return "DECLINED" with reason: "insufficient_credit_score"
+
+// -----------------------------------------------
+// Rule 5: Fraud flag check
+// -----------------------------------------------
+rule decline_fraud_flag
+    priority 2
+    salience 30
+when
+    Applicant a:
+        fraud_flag == true
+then
+    return "DECLINED" with reason: "fraud_detected"
+
+// -----------------------------------------------
+// Rule 6: Bankruptcy check
+// -----------------------------------------------
+rule decline_recent_bankruptcy
+    priority 2
+    salience 25
+when
+    Applicant a:
+        bankruptcy_years_ago < 7
+then
+    return "DECLINED" with reason: "recent_bankruptcy"

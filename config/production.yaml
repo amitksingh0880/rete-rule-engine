@@ -1,0 +1,36 @@
+# Production Configuration Overrides
+
+engine:
+  enable_tracing: false
+
+ai:
+  enabled: true
+
+feature_store:
+  online:
+    backend: "redis"
+    host: "${REDIS_HOST}"
+    port: 6379
+  offline:
+    backend: "postgresql"
+    url: "${DATABASE_URL}"
+
+api:
+  cors_origins: ["https://yourdomain.com"]
+  enable_docs: false
+
+persistence:
+  audit_log:
+    backend: "postgresql"
+    url: "${DATABASE_URL}"
+  rule_store:
+    backend: "postgresql"
+    url: "${DATABASE_URL}"
+
+guardrails:
+  enabled: true
+  bias_detection: true
+  drift_detection: true
+
+logging:
+  level: "WARNING"

@@ -1,0 +1,35 @@
+# Core
+antlr4-python3-runtime==4.13.1
+pydantic==2.5.0
+PyYAML==6.0.1
+
+# AI/ML
+onnxruntime==1.16.3
+numpy==1.26.2
+pandas==2.1.4
+redis==5.0.1
+
+# API
+fastapi==0.109.0
+uvicorn==0.27.0
+httpx==0.26.0
+
+# Persistence
+sqlalchemy==2.0.25
+alembic==1.13.1
+aiosqlite==0.20.0
+
+# Observability
+opentelemetry-api==1.22.0
+opentelemetry-sdk==1.22.0
+structlog==24.1.0
+
+# Testing
+pytest==8.0.0
+pytest-asyncio==0.23.3
+hypothesis==6.92.0
+
+# Utilities
+python-json-logger==2.0.7
+tenacity==8.2.3
+cachetools==5.3.2

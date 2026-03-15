@@ -1,0 +1,50 @@
+# Default Configuration - Finance Rule Engine
+
+engine:
+  max_cycles: 100
+  timeout_seconds: 30
+  enable_tracing: false
+  conflict_resolution: "salience"  # salience | priority | recency | specificity
+
+ai:
+  enabled: true
+  default_confidence_threshold: 0.6
+  model_path: "./models"
+  inference_timeout_ms: 100
+
+feature_store:
+  online:
+    backend: "memory"  # memory | redis
+    host: "localhost"
+    port: 6379
+    default_ttl_seconds: 86400
+  offline:
+    backend: "sqlite"  # sqlite | postgresql
+    url: "sqlite:///./data/features.db"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  enable_docs: true
+  cors_origins: ["*"]
+
+persistence:
+  audit_log:
+    backend: "sqlite"
+    url: "sqlite:///./data/audit.db"
+    retention_days: 2555  # 7 years (financial compliance)
+  rule_store:
+    backend: "sqlite"
+    url: "sqlite:///./data/rules.db"
+
+guardrails:
+  enabled: true
+  bias_detection: true
+  confidence_threshold: 0.6
+  drift_detection: false
+
+logging:
+  level: "INFO"
+  format: "json"
+  output: "stdout"
