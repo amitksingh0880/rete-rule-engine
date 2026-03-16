@@ -36,6 +36,8 @@ from ai.model_registry import ModelRegistry
 from ai.guardrails import GuardrailManager
 from ai.inference import InferenceEngine
 from persistence.audit_log import AuditLogger
+from persistence.storage import StorageManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +119,19 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     app.state.decision_count = {}
     app.state.ai_requests = 0
 
+    # Persistence
+    storage = StorageManager(data_dir=cfg.get("data_dir", "data"))
+    app.state.storage = storage
+
+    # Load persisted rules
+    persisted_rules = storage.load_rules()
+    for dsl in persisted_rules.values():
+        try:
+            rule_engine.load_rules(dsl)
+        except Exception as e:
+            logger.error(f"Failed to load persisted rule: {e}")
+
+
 
     # -----------------------------------------------------------------------
     # Routes
@@ -183,9 +198,16 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     async def load_rules(request: Request, definition: RuleDefinition = Body(...)):
         """Compile and load rules from DSL source."""
         re_: DSLRuleEngine = request.app.state.rule_engine
+        st: StorageManager = request.app.state.storage
         try:
             rule_ids = re_.load_rules(definition.dsl)
+            # Persist
+            current_rules = st.load_rules()
+            for rid in rule_ids:
+                current_rules[rid] = definition.dsl
+            st.save_rules(current_rules)
         except SyntaxError as exc:
+
             raise HTTPException(status_code=400, detail=f"Syntax error: {exc}")
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
@@ -194,18 +216,76 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     @app.post("/ai/generate", tags=["AI"])
     @app.post("/ai/generate/", tags=["AI"])
     async def generate_rule_ai(request: Request, req: AIGenerateRequest = Body(...)):
-        """Mock AI endpoint to generate DSL from natural language."""
+        """Improved Mock AI endpoint to generate DSL from natural language."""
+        import re
         request.app.state.ai_requests += 1
-        logger.info(f"AI Generation requested: {req.prompt}")
-        p = req.prompt.lower()
-        if "credit" in p or "score" in p:
-            dsl = 'rule "credit_check"\n  when\n    Applicant(score < 700)\n  then\n    return(result="REJECTED", reason="Score too low")'
-        elif "income" in p:
-            dsl = 'rule "income_check"\n  when\n    Applicant(income < 30000)\n  then\n    return(result="REVIEW", reason="Low income")'
-        else:
-            dsl = 'rule "new_logic"\n  when\n    # Auto-generated condition\n    Applicant(age > 18)\n  then\n    return(result="APPROVED")'
+        prompt = req.prompt.lower()
         
+        # 1. Identify Fact Type
+        fact_type = "Applicant"  # Default
+        if any(w in prompt for w in ["transaction", "sale", "purchase"]): fact_type = "Transaction"
+        elif any(w in prompt for w in ["policy", "insurance", "plan"]): fact_type = "Policy"
+        elif any(w in prompt for w in ["claim", "accident", "incident"]): fact_type = "Claim"
+        elif any(w in prompt for w in ["customer", "user", "client"]): fact_type = "Customer"
+
+        # 2. Identify Action/Result
+        result = "APPROVED"
+        reason = "Automated AI Approval"
+        if any(w in prompt for w in ["reject", "deny", "block", "refuse", "stop"]):
+            result = "REJECTED"
+            reason = "Policy violation or high risk detected"
+        elif any(w in prompt for w in ["review", "investigate", "audit", "manual", "flag"]):
+            result = "REVIEW"
+            reason = "Flagged for manual review by AI"
+        elif "fraud" in prompt:
+            result = "REVIEW"
+            reason = "Pattern matches known fraud indicators"
+
+        # 3. Extract Condition Attributes
+        attr = "age"  # Default
+        if any(w in prompt for w in ["score", "credit"]): attr = "credit_score"
+        elif "income" in prompt: attr = "annual_income"
+        elif "amount" in prompt: attr = "amount"
+        elif "balance" in prompt: attr = "balance"
+        elif "duration" in prompt: attr = "duration"
+        elif "debt" in prompt: attr = "debt_to_income"
+        elif "count" in prompt: attr = "frequency"
+
+        # 4. Extract Numbers and Operators
+        numbers = re.findall(r'\d+', prompt)
+        # Use common sense defaults if no number found
+        if not numbers:
+            if attr == "credit_score": val = "700"
+            elif attr == "annual_income": val = "50000"
+            elif attr == "amount": val = "1000"
+            else: val = "18"
+        else:
+            val = numbers[0]
+        
+        op = ">" # Default
+        if any(w in prompt for w in ["below", "under", "less", "lower", "within"]):
+            op = "<"
+        elif any(w in prompt for w in ["equal", "is", "exactly"]):
+            op = "=="
+            
+        # 5. Build Rule Name
+        u_id = uuid.uuid4().hex[:6]
+        prefix = "ai_rule"
+        if "fraud" in prompt: prefix = "fraud_detection"
+        elif any(w in prompt for w in ["loan", "mortgage"]): prefix = "loan_approval"
+        elif any(w in prompt for w in ["price", "discount", "promo"]): prefix = "pricing_logic"
+        rule_name = f"{prefix}_{u_id}"
+
+        condition = f"{fact_type}({attr} {op} {val})"
+        
+        dsl = f'rule "{rule_name}"'
+        dsl += f'\n  when\n    {condition}'
+        dsl += f'\n  then\n    return(result="{result}", reason="{reason}")'
+        
+        logger.info(f"Generated DSL: {dsl}")
         return {"dsl": dsl}
+
+
 
     @app.get("/rules", tags=["Rules"])
     async def list_rules(request: Request):
@@ -239,12 +319,31 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
 
     @app.get("/metrics", tags=["Operations"])
     async def metrics(request: Request):
+        # Mock historical data for charts
+        historical_latency = [
+            {"time": "08:00", "latency": 0.45},
+            {"time": "09:00", "latency": 0.38},
+            {"time": "10:00", "latency": 0.52},
+            {"time": "11:00", "latency": 0.42},
+            {"time": "12:00", "latency": 0.35},
+        ]
+        historical_throughput = [
+            {"time": "08:00", "requests": 1200},
+            {"time": "09:00", "requests": 1450},
+            {"time": "10:00", "requests": 1100},
+            {"time": "11:00", "requests": 1600},
+            {"time": "12:00", "requests": 1300},
+        ]
         return {
             "requests_total": request.app.state.request_count,
             "decisions": request.app.state.decision_count,
             "rules_loaded": len(request.app.state.rule_engine.rule_ids),
+            "ai_requests": request.app.state.ai_requests,
             "uptime_seconds": round(float(time.time() - request.app.state.start_time), 1),
+            "historical_latency": historical_latency,
+            "historical_throughput": historical_throughput
         }
+
 
     @app.get("/network", tags=["Rules"])
     async def get_network(request: Request):
@@ -252,7 +351,19 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
         re_: DSLRuleEngine = request.app.state.rule_engine
         return re_.network.export_graph()
 
+    @app.get("/categories", tags=["Modeling"])
+    async def list_categories(request: Request):
+        st: StorageManager = request.app.state.storage
+        return st.load_categories()
+
+    @app.post("/categories", tags=["Modeling"])
+    async def save_categories(request: Request, categories: List[Dict] = Body(...)):
+        st: StorageManager = request.app.state.storage
+        st.save_categories(categories)
+        return {"status": "saved"}
+
     return app
+
 
 
 # ---------------------------------------------------------------------------

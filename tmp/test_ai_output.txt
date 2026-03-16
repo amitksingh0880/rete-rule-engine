@@ -1,0 +1,40 @@
+
+Prompt: Create a loan approval rule for people with credit score above 750
+Generated DSL:
+rule "loan_approval"
+  when
+    Applicant(credit_score > 700)
+  then
+    return(result="APPROVED", reason="Automated AI Approval")
+
+Prompt: Reject transactions over 5000
+Generated DSL:
+rule "ai_generated_36dd16"
+  when
+    Transaction(age > 18)
+  then
+    return(result="REJECTED", reason="High risk detected by AI")
+
+Prompt: Flag claims with amount exactly 1337 for fraud review
+Generated DSL:
+rule "fraud_detection"
+  when
+    Claim(amount < 1000)
+  then
+    return(result="REVIEW", reason="Manual verification required")
+
+Prompt: Insurance policy for customers with age below 25
+Generated DSL:
+rule "ai_generated_8e11c7"
+  when
+    Policy(age > 18)
+  then
+    return(result="APPROVED", reason="Automated AI Approval")
+
+Prompt: Low income check: annual income under 30000
+Generated DSL:
+rule "ai_generated_5afdeb"
+  when
+    Applicant(annual_income > 50000)
+  then
+    return(result="APPROVED", reason="Automated AI Approval")

@@ -24,68 +24,74 @@ import { cn } from "@/lib/utils";
 
 // --- Custom Node Types ---
 
+// --- Custom Node Types ---
+
 const StartNode = ({ data }: any) => (
-  <div className="px-6 py-4 glass-card rounded-2xl border-green-500/20 bg-green-500/5 shadow-[0_0_20px_RGBA(34,197,94,0.1)] min-w-[150px] relative">
-    <div className="flex items-center gap-3">
-      <div className="p-2 bg-green-500/20 rounded-lg text-green-400">
-        <Database size={18} />
+  <div className="px-6 py-4 glass-card rounded-[2rem] border-green-500/30 bg-green-500/10 shadow-[0_0_40px_RGBA(34,197,94,0.15)] min-w-[180px] relative group hover:scale-105 transition-all duration-500">
+    <div className="flex items-center gap-4">
+      <div className="p-3 bg-green-500/20 rounded-2xl text-green-400 group-hover:bg-green-500 group-hover:text-white transition-all shadow-lg shadow-green-500/20">
+        <Database size={22} />
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase text-green-500/50 tracking-widest">Input Fact</p>
-        <p className="text-sm font-bold text-white">{data.label}</p>
+        <p className="text-[10px] font-black uppercase text-green-500/60 tracking-widest mb-0.5">Input Fact</p>
+        <p className="text-base font-black text-white tracking-tight">{data.label}</p>
       </div>
     </div>
-    <Handle type="source" position={Position.Right} className="w-3 h-3 bg-green-500 border-2 border-white" />
+    <Handle type="source" position={Position.Right} className="!w-4 !h-4 !bg-green-500 !border-4 !border-white/20 !-right-2 shadow-xl" />
   </div>
 );
 
 const RuleNode = ({ data }: any) => (
   <div className={cn(
-    "px-6 py-4 glass-card rounded-2xl border-white/10 bg-white/5 min-w-[200px] transition-all duration-500",
-    data.isActive ? "border-primary/50 bg-primary/10 shadow-[0_0_30px_RGBA(124,58,237,0.2)] scale-105 ring-2 ring-primary/20" : ""
+    "px-6 py-5 glass-card rounded-[2rem] border-white/10 bg-white/5 min-w-[220px] transition-all duration-700 relative group overflow-hidden",
+    data.isActive ? "border-primary/60 bg-primary/20 shadow-[0_0_50px_RGBA(124,58,237,0.3)] scale-110 ring-4 ring-primary/20 z-10" : "hover:bg-white/10 hover:border-white/20"
   )}>
-    <Handle type="target" position={Position.Left} className="w-2 h-2 bg-white/20 border-none" />
-    <div className="flex items-center gap-3">
+    {data.isActive && (
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent animate-pulse" />
+    )}
+    <Handle type="target" position={Position.Left} className="!w-3 !h-3 !bg-white/20 !border-none !-left-1.5" />
+    <div className="flex items-center gap-4 relative z-10">
       <div className={cn(
-        "p-2 rounded-lg transition-colors",
-        data.isActive ? "bg-primary text-white" : "bg-white/5 text-muted-foreground"
+        "p-3 rounded-2xl transition-all duration-500 shadow-lg",
+        data.isActive ? "bg-primary text-white shadow-primary/40 scale-110" : "bg-white/5 text-muted-foreground group-hover:text-white"
       )}>
-        <Zap size={18} />
+        <Zap size={22} fill={data.isActive ? "currentColor" : "none"} />
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Condition</p>
-        <p className="text-sm font-bold text-white tracking-tight">{data.label}</p>
+        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-0.5">Condition</p>
+        <p className="text-base font-black text-white tracking-tighter">{data.label}</p>
       </div>
     </div>
     {data.isActive && (
-       <div className="absolute -top-3 -right-3 px-2 py-0.5 bg-primary text-[8px] font-black text-white rounded uppercase tracking-tighter shadow-lg">
-         Match
+       <div className="absolute top-3 right-3 px-3 py-1 bg-primary text-[9px] font-black text-white rounded-full uppercase tracking-widest shadow-xl animate-in fade-in zoom-in duration-300">
+         Matched
        </div>
     )}
-    <Handle type="source" position={Position.Right} className="w-2 h-2 bg-white/20 border-none" />
+    <Handle type="source" position={Position.Right} className="!w-3 !h-3 !bg-white/20 !border-none !-right-1.5" />
   </div>
 );
 
 const TerminalNode = ({ data }: any) => (
   <div className={cn(
-    "px-6 py-4 glass-card rounded-2xl border-purple-500/20 bg-purple-500/5 min-w-[180px] transition-all duration-700",
-    data.isActive ? "border-purple-400 bg-purple-500/20 shadow-[0_0_40px_RGBA(168,85,247,0.3)] ring-2 ring-purple-500/30 font-bold" : ""
+    "px-8 py-6 glass-card rounded-[2.5rem] border-indigo-500/30 bg-indigo-500/10 min-w-[200px] transition-all duration-1000 relative group",
+    data.isActive ? "border-indigo-400 bg-indigo-500/30 shadow-[0_0_60px_RGBA(99,102,241,0.4)] ring-4 ring-indigo-500/30 scale-110" : "opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
   )}>
-    <Handle type="target" position={Position.Left} className="w-3 h-3 bg-purple-500 border-2 border-white" />
-    <div className="flex items-center gap-3">
+    <Handle type="target" position={Position.Left} className="!w-5 !h-5 !bg-indigo-500 !border-4 !border-white/20 !-left-2.5 shadow-xl" />
+    <div className="flex items-center gap-4">
       <div className={cn(
-        "p-2 rounded-lg",
-        data.isActive ? "bg-purple-500 text-white" : "bg-purple-500/20 text-purple-400"
+        "p-4 rounded-[1.5rem] shadow-2xl transition-all duration-500",
+        data.isActive ? "bg-indigo-500 text-white rotate-3" : "bg-indigo-500/20 text-indigo-400"
       )}>
-        <Play size={18} />
+        <Play size={24} fill={data.isActive ? "currentColor" : "none"} />
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase text-purple-500/50 tracking-widest">Outcome</p>
-        <p className="text-sm font-black text-white">{data.label}</p>
+        <p className="text-[10px] font-black uppercase text-indigo-500/50 tracking-widest mb-0.5">Execution Result</p>
+        <p className="text-lg font-black text-white tracking-tighter">{data.label}</p>
       </div>
     </div>
   </div>
 );
+
 
 const nodeTypes = {
   alpha: StartNode,

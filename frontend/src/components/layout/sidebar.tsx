@@ -18,13 +18,14 @@ interface SidebarProps {
 export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "editor", label: "Rule Editor", icon: FileCode2 },
-    { id: "list", label: "Rule List", icon: ListTree },
-    { id: "flow", label: "Rule Flow", icon: Network },
-    { id: "categories", label: "Categories", icon: Database },
-    { id: "playground", label: "Playground", icon: PlayCircle },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "editor", label: "Rule Architect", icon: FileCode2 },
+    { id: "list", label: "Policies", icon: ListTree },
+    { id: "deployment", label: "Deployments", icon: PlayCircle }, // Renamed from playground
+    { id: "flow", label: "Logic Flow", icon: Network },
+    { id: "categories", label: "Data Schema", icon: Database },
+    { id: "analytics", label: "Intelligence", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: Settings },
+
   ];
 
   return (

@@ -45,20 +45,31 @@
 }
 
 .glass-card {
-  @apply bg-card/60 backdrop-blur-md border border-white/10 shadow-xl;
+  @apply bg-card/40 backdrop-blur-xl border border-white/5 shadow-[0_20px_50px_RGBA(0,0,0,0.3)];
 }
 
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-linear-to-r from-purple-400 to-pink-600;
+  @apply bg-clip-text text-transparent bg-linear-to-r from-primary to-indigo-400 font-black;
 }
 
-.glow-primary {
-  box-shadow: 0 0 20px -5px hsl(263.4 70% 50.4% / 0.5);
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.animate-float {
+  animation: float 10s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 12s ease-in-out infinite;
+  animation-delay: 2s;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
+
 
 ::-webkit-scrollbar-track {
   @apply bg-background;
