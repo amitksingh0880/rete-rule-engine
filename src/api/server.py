@@ -19,7 +19,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
+from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -39,6 +39,34 @@ from persistence.audit_log import AuditLogger
 
 logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------------------
+# Pydantic schemas
+# -----------------------------------------------------------------------
+
+class FactInput(BaseModel):
+    fact_type: str = Field(..., description="Fact category (Applicant, Policy, Claim, …)")
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+    source: str = "api"
+
+class ExecuteRequest(BaseModel):
+    facts: List[FactInput]
+    context: Dict[str, Any] = Field(default_factory=dict)
+    trace: bool = False
+    max_cycles: int = 100
+
+class ExecuteResponse(BaseModel):
+    request_id: str
+    decision: Optional[str]
+    confidence: Optional[float] = None
+    matched_rules: List[str]
+    actions: List[Dict]
+    guardrail_violations: List[Dict] = []
+    latency_ms: float
+    trace: Optional[List[Dict]] = None
+
+class RuleDefinition(BaseModel):
+    dsl: str = Field(..., description="Rule DSL source text")
+
 # ---------------------------------------------------------------------------
 # Application factory
 # ---------------------------------------------------------------------------
@@ -56,7 +84,7 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cfg.get("cors_origins", ["*"]),
+        allow_origins=cfg.get("cors_origins", ["http://localhost:5173", "http://127.0.0.1:5173", "*"]),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -83,44 +111,17 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     app.state.audit_logger = audit_logger
     app.state.start_time = time.time()
     app.state.request_count = 0
-    app.state.decision_count: Dict[str, int] = {}
+    app.state.decision_count = {}
 
-    # -----------------------------------------------------------------------
-    # Pydantic schemas
-    # -----------------------------------------------------------------------
-
-    class FactInput(BaseModel):
-        fact_type: str = Field(..., description="Fact category (Applicant, Policy, Claim, …)")
-        attributes: Dict[str, Any] = Field(default_factory=dict)
-        source: str = "api"
-
-    class ExecuteRequest(BaseModel):
-        facts: List[FactInput]
-        context: Dict[str, Any] = Field(default_factory=dict)
-        trace: bool = False
-        max_cycles: int = 100
-
-    class ExecuteResponse(BaseModel):
-        request_id: str
-        decision: Optional[str]
-        confidence: Optional[float] = None
-        matched_rules: List[str]
-        actions: List[Dict]
-        guardrail_violations: List[Dict] = []
-        latency_ms: float
-        trace: Optional[List[Dict]] = None
-
-    class RuleDefinition(BaseModel):
-        dsl: str = Field(..., description="Rule DSL source text")
 
     # -----------------------------------------------------------------------
     # Routes
     # -----------------------------------------------------------------------
 
     @app.post("/execute", response_model=ExecuteResponse, tags=["Execution"])
-    async def execute_rules(req: ExecuteRequest, background: BackgroundTasks, request: Request):
+    async def execute_rules(request: Request, req: ExecuteRequest = Body(...), background: BackgroundTasks = BackgroundTasks()):
         """Evaluate loaded rules against the provided set of facts."""
-        request_id = uuid.uuid4().hex[:12]
+        request_id = str(uuid.uuid4().hex)[:12]
         re_: DSLRuleEngine = request.app.state.rule_engine
         gm: GuardrailManager = request.app.state.guardrails
         al: AuditLogger = request.app.state.audit_logger
@@ -170,12 +171,12 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
             matched_rules=result.get("matched_rules", []),
             actions=result.get("actions", []),
             guardrail_violations=[v.to_dict() for v in violations],
-            latency_ms=round(latency_ms, 3),
+            latency_ms=round(float(latency_ms), 3),
             trace=result.get("actions") if req.trace else None,
         )
 
     @app.post("/rules/load", tags=["Rules"], status_code=status.HTTP_201_CREATED)
-    async def load_rules(definition: RuleDefinition, request: Request):
+    async def load_rules(request: Request, definition: RuleDefinition = Body(...)):
         """Compile and load rules from DSL source."""
         re_: DSLRuleEngine = request.app.state.rule_engine
         try:
@@ -185,6 +186,19 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
         return {"status": "created", "rules_loaded": len(rule_ids), "rule_ids": rule_ids}
+
+    @app.post("/ai/generate", tags=["AI"])
+    async def generate_rule_ai(prompt: str = Body(..., embed=True)):
+        """Mock AI endpoint to generate DSL from natural language."""
+        p = prompt.lower()
+        if "credit" in p or "score" in p:
+            dsl = 'rule "credit_check"\n  when\n    Applicant(score < 700)\n  then\n    return(result="REJECTED", reason="Score too low")'
+        elif "income" in p:
+            dsl = 'rule "income_check"\n  when\n    Applicant(income < 30000)\n  then\n    return(result="REVIEW", reason="Low income")'
+        else:
+            dsl = 'rule "new_logic"\n  when\n    # Auto-generated condition\n    Applicant(age > 18)\n  then\n    return(result="APPROVED")'
+        
+        return {"dsl": dsl}
 
     @app.get("/rules", tags=["Rules"])
     async def list_rules(request: Request):
@@ -224,6 +238,12 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
             "rules_loaded": len(request.app.state.rule_engine.rule_ids),
             "uptime_seconds": round(time.time() - request.app.state.start_time, 1),
         }
+
+    @app.get("/network", tags=["Rules"])
+    async def get_network(request: Request):
+        """Export the Rete network graph for visualization."""
+        re_: DSLRuleEngine = request.app.state.rule_engine
+        return re_.network.export_graph()
 
     return app
 

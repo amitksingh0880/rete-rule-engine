@@ -333,3 +333,50 @@ class ReteNetwork:
             "beta_nodes": len(self._beta_nodes),
             "facts": self.fact_count,
         }
+
+    def export_graph(self) -> Dict[str, Any]:
+        """
+        Export the Rete network as a graph (nodes and edges) for visualization.
+        """
+        nodes = []
+        edges = []
+        seen_nodes = set()
+
+        def add_node(node_obj, node_type, label, data=None):
+            node_id = str(id(node_obj))
+            if node_id not in seen_nodes:
+                nodes.append({
+                    "id": node_id,
+                    "type": node_type,
+                    "label": label,
+                    "data": data or {}
+                })
+                seen_nodes.add(node_id)
+            return node_id
+
+        # 1. Alpha Nodes
+        for key, alpha in self._alpha_nodes.items():
+            label = f"Alpha: {alpha.fact_type}" if hasattr(alpha, 'fact_type') else "Alpha"
+            data = {"constraints": [str(c) for c in alpha.constraints]}
+            u = add_node(alpha, "alpha", label, data)
+            
+            # Edges to children (betas)
+            for child in alpha.children:
+                v = add_node(child, "beta", "Beta")
+                edges.append({"id": f"e-{u}-{v}", "source": u, "target": v})
+
+        # 2. Beta Nodes and their children
+        for beta in self._beta_nodes:
+            u = add_node(beta, "beta", "Beta", {"is_not": getattr(beta, 'is_not_node', False)})
+            for child in beta.children:
+                if isinstance(child, TerminalNode):
+                    v = add_node(child, "terminal", f"Rule: {child.rule_id}")
+                else:
+                    v = add_node(child, "beta", "Beta")
+                edges.append({"id": f"e-{u}-{v}", "source": u, "target": v})
+
+        # 3. Terminal Nodes
+        for rid, terminal in self._terminal_nodes.items():
+            add_node(terminal, "terminal", f"Rule: {rid}")
+
+        return {"nodes": nodes, "edges": edges}
