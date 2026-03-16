@@ -10,7 +10,6 @@ import {
   Type,
   ToggleLeft
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Attribute {
   id: string;

@@ -87,10 +87,11 @@ class SimpleRuleParser:
     def _parse_rule_block(self, block: str) -> Dict:
         # Extract name
         first_line, _, rest = block.partition("\n")
-        name_match = re.match(r'(\w+)', first_line.strip())
+        # Extract name (support quoted or unquoted)
+        name_match = re.match(r'["\']?([\w\s\-]+)["\']?', first_line.strip())
         if not name_match:
             raise ParseError(f"Cannot find rule name in: {first_line!r}")
-        rule_name = name_match.group(1)
+        rule_name = name_match.group(1).strip()
 
         # Extract priority / salience from first line
         priority = int(m.group(1)) if (m := re.search(r'\bpriority\s+(\d+)', first_line)) else 0
@@ -124,33 +125,51 @@ class SimpleRuleParser:
     # ------------------------------------------------------------------
     def _parse_conditions(self, text: str) -> List[Dict]:
         conditions = []
-        # Split on blank lines or on lines that start with an uppercase letter
-        # (new fact pattern)
-        pattern_blocks = re.split(r'\n(?=[A-Z])', text)
-        for pb in pattern_blocks:
-            pb = pb.strip()
-            if not pb:
-                continue
+        # Support both multi-line colon syntax and single-line parenthesis syntax
+        # Split by lines or double newlines depending on structure
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        for line in lines:
             negation = False
-            if pb.lower().startswith("not "):
+            if line.lower().startswith("not "):
                 negation = True
-                pb = pb[4:].strip()
+                line = line[4:].strip()
+            
             try:
-                cond = self._parse_fact_pattern(pb)
+                cond = self._parse_fact_pattern(line)
                 cond["negation"] = negation
                 conditions.append(cond)
             except ParseError as exc:
-                logger.warning("Skipping condition block: %s", exc)
+                logger.warning("Skipping condition: %s", exc)
         return conditions
 
     def _parse_fact_pattern(self, text: str) -> Dict:
-        """Parse  'FactType [var]: field op value, ...'"""
+        """Parse 'FactType(constraints)' or 'FactType [var]: field op value'"""
         lines = [l.strip() for l in text.splitlines() if l.strip()]
         if not lines:
             raise ParseError("Empty fact pattern")
+        
+        # Strategy A: FactType(field op value, ...)
+        paren_match = re.match(r'(\w+)\s*\((.*)\)', lines[0])
+        if paren_match:
+            fact_type = paren_match.group(1)
+            var_name = None 
+            constraint_text = paren_match.group(2)
+            constraints = []
+            for c in constraint_text.split(","):
+                c = c.strip()
+                if not c: continue
+                fc = self._parse_constraint(c)
+                if fc: constraints.append(fc.__dict__)
+            return {
+                "fact_type": fact_type,
+                "variable": var_name,
+                "constraints": constraints,
+                "joins": [],
+                "negation": False,
+            }
 
+        # Strategy B: Legacy Colon-style
         header = lines[0]
-        # Parse header: FactType [varname]:
         header_re = re.match(r'(\w+)\s*(\w+)?\s*:', header)
         if not header_re:
             raise ParseError(f"Bad fact pattern header: {header!r}")

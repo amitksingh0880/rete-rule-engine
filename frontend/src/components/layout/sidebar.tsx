@@ -2,7 +2,6 @@ import {
   LayoutDashboard, 
   FileCode2, 
   ListTree, 
-  Activity, 
   PlayCircle, 
   Settings, 
   Database,

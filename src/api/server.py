@@ -67,6 +67,9 @@ class ExecuteResponse(BaseModel):
 class RuleDefinition(BaseModel):
     dsl: str = Field(..., description="Rule DSL source text")
 
+class AIGenerateRequest(BaseModel):
+    prompt: str
+
 # ---------------------------------------------------------------------------
 # Application factory
 # ---------------------------------------------------------------------------
@@ -112,6 +115,7 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
     app.state.start_time = time.time()
     app.state.request_count = 0
     app.state.decision_count = {}
+    app.state.ai_requests = 0
 
 
     # -----------------------------------------------------------------------
@@ -188,9 +192,12 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
         return {"status": "created", "rules_loaded": len(rule_ids), "rule_ids": rule_ids}
 
     @app.post("/ai/generate", tags=["AI"])
-    async def generate_rule_ai(prompt: str = Body(..., embed=True)):
+    @app.post("/ai/generate/", tags=["AI"])
+    async def generate_rule_ai(request: Request, req: AIGenerateRequest = Body(...)):
         """Mock AI endpoint to generate DSL from natural language."""
-        p = prompt.lower()
+        request.app.state.ai_requests += 1
+        logger.info(f"AI Generation requested: {req.prompt}")
+        p = req.prompt.lower()
         if "credit" in p or "score" in p:
             dsl = 'rule "credit_check"\n  when\n    Applicant(score < 700)\n  then\n    return(result="REJECTED", reason="Score too low")'
         elif "income" in p:
@@ -226,7 +233,7 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
         fs = request.app.state.rule_engine
         return {
             "status": "healthy",
-            "uptime_seconds": round(time.time() - request.app.state.start_time, 1),
+            "uptime_seconds": round(float(time.time() - request.app.state.start_time), 1),
             "rules_loaded": len(request.app.state.rule_engine.rule_ids),
         }
 
@@ -236,7 +243,7 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
             "requests_total": request.app.state.request_count,
             "decisions": request.app.state.decision_count,
             "rules_loaded": len(request.app.state.rule_engine.rule_ids),
-            "uptime_seconds": round(time.time() - request.app.state.start_time, 1),
+            "uptime_seconds": round(float(time.time() - request.app.state.start_time), 1),
         }
 
     @app.get("/network", tags=["Rules"])
